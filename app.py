@@ -12,13 +12,15 @@ st.set_page_config(page_title="조선대학교 추천채용 통합 관리 시스
 
 # 로고 파일 바이너리 직접 자동 탐색 및 로딩
 def get_logo_bytes():
-    possible_names = ["logo.jpg", "logo.png", "logo.jpeg", "Logo.jpg", "Logo.png", "Logo.jpeg", "LOGO.JPG", "LOGO.PNG"]
+    base_path = os.path.dirname(os.path.abspath(__file__)) if "__file__" in locals() else "."
+    possible_names = ["logo.jpg", "logo.png", "logo.jpeg", "Logo.jpg", "Logo.png", "Logo.jpeg"]
     for name in possible_names:
-        if os.path.exists(name):
+        file_path = os.path.join(base_path, name)
+        if os.path.exists(file_path):
             try:
-                with open(name, "rb") as f:
+                with open(file_path, "rb") as f:
                     return f.read()
-            except Exception:
+            except:
                 pass
     for f in os.listdir("."):
         f_lower = f.lower()
@@ -27,7 +29,7 @@ def get_logo_bytes():
                 try:
                     with open(f, "rb") as file_data:
                         return file_data.read()
-                except Exception:
+                except:
                     pass
     return None
 
@@ -47,6 +49,12 @@ with col_title:
 
 st.markdown("---")
 
+# 날짜 데이터에서 00:00:00 시간 제거 함수
+def clean_date_column(df, col_name):
+    if col_name in df.columns:
+        df[col_name] = pd.to_datetime(df[col_name], errors='coerce').dt.strftime('%Y-%m-%d').fillna(df[col_name].astype(str).str.replace(" 00:00:00", ""))
+    return df
+
 # 주요 기업 자동 구분을 위한 기본 사전
 KNOWN_COMPANIES = {
     "수완에너지": "중견기업", "수완에너지(주)": "중견기업",
@@ -57,7 +65,7 @@ KNOWN_COMPANIES = {
 }
 
 def auto_detect_company_type(comp_name):
-    clean_name = comp_name.strip()
+    clean_name = str(comp_name).strip()
     for key, val in KNOWN_COMPANIES.items():
         if key in clean_name:
             return val
@@ -94,16 +102,6 @@ if "companies" not in st.session_state:
             "연번": 1, "등록일자": "2026-06-01", "기업명": "수완에너지(주)", "구분": "중견기업", "채용직무": "운영 파트",
             "HR성명": "김담당", "HR직급": "대리", "HR내선": "062-123-4567", "HR휴대폰": "010-1234-5678", "HRe-mail": "hr@suwan.com",
             "공고시기": "2026-06", "진행상태": "마감"
-        },
-        {
-            "연번": 2, "등록일자": "2026-07-01", "기업명": "㈜하림산업", "구분": "대기업(계열사)", "채용직무": "환경자원팀",
-            "HR성명": "김인사", "HR직급": "팀장", "HR내선": "063-123-4567", "HR휴대폰": "010-1234-5678", "HRe-mail": "hr@harim.com",
-            "공고시기": "2026-07", "진행상태": "마감"
-        },
-        {
-            "연번": 3, "등록일자": "2026-08-05", "기업명": "서울시니어스타워", "구분": "우수기업", "채용직무": "사회복지/행정",
-            "HR성명": "이인사", "HR직급": "팀장", "HR내선": "02-987-6543", "HR휴대폰": "010-9876-5432", "HRe-mail": "personnel@seniortower.co.kr",
-            "공고시기": "2026-08", "진행상태": "진행중"
         }
     ])
 
@@ -113,16 +111,6 @@ if "applicants" not in st.session_state:
             "연번": 1, "지원일자": "2026-06-10", "학번": "20201234", "학생명": "김철수", "학과": "전기공학과", "학적": "재학",
             "연락처": "010-1111-2222", "이메일": "chulsoo@chosun.ac.kr", "학점": 3.6,
             "지원기업": "수완에너지(주)", "지원직무": "운영 파트", "상태": "최종합격"
-        },
-        {
-            "연번": 2, "지원일자": "2026-07-15", "학번": "20205678", "학생명": "이영희", "학과": "환경공학과", "학적": "재학",
-            "연락처": "010-2222-3333", "이메일": "yh@chosun.ac.kr", "학점": 3.8,
-            "지원기업": "㈜하림산업", "지원직무": "환경자원팀", "상태": "최종합격"
-        },
-        {
-            "연번": 3, "지원일자": "2026-08-10", "학번": "20219999", "학생명": "박민수", "학과": "사회복지학과", "학적": "졸업예정",
-            "연락처": "010-3333-4444", "이메일": "minsu@chosun.ac.kr", "학점": 3.2,
-            "지원기업": "서울시니어스타워", "지원직무": "사회복지/행정", "상태": "추천완료"
         }
     ])
 
@@ -132,29 +120,11 @@ if "passed" not in st.session_state:
             "연번": 1, "합격일자": "2026-06-25", "학번": "20201234", "이름": "김철수", "학과": "전기공학과", "연락처": "010-1111-2222",
             "기업명": "수완에너지(주)", "직무": "운영 파트", "입사일": "2026-07-01",
             "재직상태": "재직중", "멘토가능여부": True, "비고": "수습 진행 중"
-        },
-        {
-            "연번": 2, "합격일자": "2026-07-30", "학번": "20205678", "이름": "이영희", "학과": "환경공학과", "연락처": "010-2222-3333",
-            "기업명": "㈜하림산업", "직무": "환경자원팀", "입사일": "2026-08-01",
-            "재직상태": "재직중", "멘토가능여부": True, "비고": "환경기사 보유"
         }
     ])
 
-# 누적 기업 분석 보고서 저장용 세션
 if "reports" not in st.session_state:
-    st.session_state.reports = {
-        "㈜하림산업": {
-            "작성일": "2026-08-19",
-            "기본정보": {"기업명": "㈜하림산업", "대표자": "김기만", "직원수": "약 700명", "설립연도": "2012년 2월 8일", "유형": "대기업 (하림그룹 계열사)", "매출액": "약 1,093억 원", "영업이익": "약 -1,096억 원", "위치": "전북 익산시 함열읍 다송리 897", "업종": "기타 식품 첨가물 제조업", "홈페이지": "https://harim-foods.com/", "채용시기": "수시 채용 (2026.07.03 ~ 08.10)", "직무": "환경자원팀"},
-            "인재상": "• 프로 인재상: 고도의 전문 능력과 열정의 소유자\n• 프로 리더상: 경영이념을 구현할 수 있는 자\n• 비즈니스 리더상: 비전 공유와 실천의 리더",
-            "주요업무": "1. 배출원 관리: 대기 배출시설 관리 및 SEMS 운영\n2. 환경시설물 관리: 폐수처리시설 운영 및 AllBaro 처리\n3. 용수 관리: 저수조 탱크 청소 및 분석",
-            "요건": "• 학사 이상, 대기환경기사/수질환경기사 자격증 소지자\n• 우대: 환경공학 전공자, 글로벌 품질관리 담당자",
-            "이슈": "• 자원순환형 ESG 환경 관리: 수질/대기 준수율 100% 목표\n• 화학물질 관리법 준수 및 정기 점검",
-            "지도포인트": "• 환경공학과 졸업예정자 집중 추천\n• AllBaro 시스템 활용 경험 강조 필수",
-            "취업자현황": "• 2024년: 2명 (환경 1, 전기 1)\n• 2025년: 1명 (환경 1)\n• 2026년: 1명 (환경 1)",
-            "취업자특징": "• 대기환경기사 및 실무 경험자 중심 합격\n• 재맞고 / 멘토링 연계 가능 졸업생 2명 보유"
-        }
-    }
+    st.session_state.reports = {}
 
 if "edit_target" not in st.session_state:
     st.session_state.edit_target = None
@@ -194,6 +164,9 @@ menu = st.sidebar.selectbox("📂 메뉴 선택", ["1. 등록 기업 관리", "2
 if menu == "1. 등록 기업 관리":
     st.header("🏢 추천채용 등록 기업 & HR 담당자 리스트")
     st.info("💡 표 안의 항목을 더블클릭하면 엑셀처럼 직접 수정할 수 있습니다.")
+    
+    # 시간 데이터 깔끔하게 정돈
+    st.session_state.companies = clean_date_column(st.session_state.companies, "등록일자")
     
     edited_companies = st.data_editor(
         st.session_state.companies,
@@ -252,7 +225,7 @@ if menu == "1. 등록 기업 관리":
 # --- 2. 지원 학생 관리 ---
 elif menu == "2. 지원 학생 관리":
     st.header("👨‍🎓 지원 학생 상세 리스트")
-    st.info("💡 지원일자, 상태, 기업 정보 등을 표에서 직접 고칠 수 있습니다.")
+    st.session_state.applicants = clean_date_column(st.session_state.applicants, "지원일자")
     
     edited_applicants = st.data_editor(
         st.session_state.applicants,
@@ -299,7 +272,8 @@ elif menu == "2. 지원 학생 관리":
 # --- 3. 합격자 DB & 멘토 풀 ---
 elif menu == "3. 합격자 DB & 멘토 풀":
     st.header("🏆 합격자 데이터베이스 & 실무 멘토 풀")
-    st.subheader("📌 전체 최종 합격자 명단")
+    st.session_state.passed = clean_date_column(st.session_state.passed, "합격일자")
+    st.session_state.passed = clean_date_column(st.session_state.passed, "입사일")
     
     edited_passed = st.data_editor(
         st.session_state.passed,
@@ -386,6 +360,13 @@ elif menu == "📂 5. 기존 엑셀 일괄 업로드":
         uploaded_file = st.file_uploader("작성 완료된 엑셀 파일(.xlsx)을 드래그하세요.", type=["xlsx", "xls"])
         if uploaded_file is not None:
             df_upload = pd.read_excel(uploaded_file)
+            # 업로드된 파일의 날짜 포맷도 정리
+            if target_upload == "등록 기업 목록": df_upload = clean_date_column(df_upload, "등록일자")
+            elif target_upload == "지원 학생 목록": df_upload = clean_date_column(df_upload, "지원일자")
+            elif target_upload == "합격자 DB 목록": 
+                df_upload = clean_date_column(df_upload, "합격일자")
+                df_upload = clean_date_column(df_upload, "입사일")
+                
             st.dataframe(df_upload, use_container_width=True)
             if st.button("시스템에 이 데이터 통합/추가하기"):
                 if target_upload == "등록 기업 목록": st.session_state.companies = pd.concat([st.session_state.companies, df_upload], ignore_index=True)
@@ -394,7 +375,7 @@ elif menu == "📂 5. 기존 엑셀 일괄 업로드":
                 st.success("추가 완료!")
                 st.rerun()
 
-# --- 6. 기업 분석 보고서 생성 및 A4 1장 원클릭 인쇄 기능 ---
+# --- 6. 기업 분석 보고서 생성 및 A4 1장 인쇄 관리 ---
 elif menu == "📝 6. 기업 분석 보고서 생성":
     st.header("📝 기업 분석 보고서 작성 및 A4 1장 인쇄 관리")
     
@@ -503,7 +484,6 @@ elif menu == "📝 6. 기업 분석 보고서 생성":
                 if st.button("🖨️ A4 1장 보고서 즉시 인쇄 / PDF 저장", type="primary"):
                     components.html("<script>window.parent.print();</script>", height=0)
 
-            # A4 1장 인쇄 전용 CSS 및 HTML 문서 레이아웃
             report_html = f"""
             <style>
             @media print {{
