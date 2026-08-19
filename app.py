@@ -9,23 +9,82 @@ from bs4 import BeautifulSoup
 
 st.set_page_config(page_title="조선대학교 추천채용 통합 관리 시스템", layout="wide")
 
-# 로고 파일 자동 감지 (한글, 대소문자, 주요 확장자 전체 탐색)
-def get_logo_path():
-    files = os.listdir(".") if os.path.exists(".") else []
-    for f in files:
+# 인쇄용 CSS 레이아웃 스타일 정의
+st.markdown("""
+<style>
+@media print {
+    [data-testid="stSidebar"] { display: none !important; }
+    header { display: none !important; }
+    footer { display: none !important; }
+    .no-print { display: none !important; }
+    .print-container {
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        font-size: 11pt !important;
+    }
+    .page-break { page-break-after: always; }
+}
+.report-card {
+    border: 2px solid #003366;
+    padding: 20px;
+    border-radius: 8px;
+    background-color: #ffffff;
+    margin-bottom: 20px;
+}
+.report-header {
+    text-align: center;
+    border-bottom: 2px solid #003366;
+    padding-bottom: 10px;
+    margin-bottom: 15px;
+}
+.report-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 15px;
+}
+.report-table th, .report-table td {
+    border: 1px solid #cccccc;
+    padding: 6px 10px;
+    font-size: 10pt;
+}
+.report-table th {
+    background-color: #f2f5f8;
+    color: #003366;
+    font-weight: bold;
+    text-align: center;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# 로고 파일 바이너리 직접 자동 탐색 및 로딩
+def get_logo_bytes():
+    possible_names = ["logo.jpg", "logo.png", "logo.jpeg", "Logo.jpg", "Logo.png", "Logo.jpeg", "LOGO.JPG", "LOGO.PNG"]
+    for name in possible_names:
+        if os.path.exists(name):
+            try:
+                with open(name, "rb") as f:
+                    return f.read()
+            except Exception:
+                pass
+    for f in os.listdir("."):
         f_lower = f.lower()
-        if f_lower.startswith("logo") or "로고" in f_lower or "조선" in f_lower:
+        if "logo" in f_lower or "로고" in f_lower or "조선" in f_lower:
             if f_lower.endswith((".png", ".jpg", ".jpeg", ".webp", ".gif")):
-                return f
+                try:
+                    with open(f, "rb") as file_data:
+                        return file_data.read()
+                except Exception:
+                    pass
     return None
 
-logo_file = get_logo_path()
+logo_bytes = get_logo_bytes()
 
 # 로고 및 타이틀 헤더 구성
 col_logo, col_title = st.columns([1, 5])
 with col_logo:
-    if logo_file:
-        st.image(logo_file, width=140)
+    if logo_bytes:
+        st.image(logo_bytes, width=140)
     else:
         st.markdown("### 🎓 **CHOSUN**")
 
@@ -128,8 +187,21 @@ if "passed" not in st.session_state:
         }
     ])
 
+# 누적 기업 분석 보고서 저장용 세션
 if "reports" not in st.session_state:
-    st.session_state.reports = {}
+    st.session_state.reports = {
+        "㈜하림산업": {
+            "작성일": "2026-08-19",
+            "기본정보": {"기업명": "㈜하림산업", "대표자": "김기만", "직원수": "약 700명", "설립연도": "2012년 2월 8일", "유형": "대기업 (하림그룹 계열사)", "매출액": "약 1,093억 원", "영업이익": "약 -1,096억 원", "위치": "전북 익산시 함열읍 다송리 897", "업종": "기타 식품 첨가물 제조업", "홈페이지": "https://harim-foods.com/", "채용시기": "수시 채용 (2026.07.03 ~ 08.10)", "직무": "환경자원팀"},
+            "인재상": "• 프로 인재상: 고도의 전문 능력과 열정의 소유자\n• 프로 리더상: 경영이념을 구현할 수 있는 자\n• 비즈니스 리더상: 비전 공유와 실천의 리더",
+            "주요업무": "1. 배출원 관리: 대기 배출시설 관리 및 SEMS 운영\n2. 환경시설물 관리: 폐수처리시설 운영 및 AllBaro 처리\n3. 용수 관리: 저수조 탱크 청소 및 분석",
+            "요건": "• 학사 이상, 대기환경기사/수질환경기사 자격증 소지자\n• 우대: 환경공학 전공자, 글로벌 품질관리 담당자",
+            "이슈": "• 자원순환형 ESG 환경 관리: 수질/대기/유해화학물질 준수율 100% 목표\n• 화학물질 관리법 준수 및 정기 점검",
+            "지도포인트": "• 환경공학과 졸업예정자 집중 추천\n• AllBaro 시스템 활용 경험 강조 필수",
+            "취업자현황": "• 2024년: 2명 (환경 1, 전기 1)\n• 2025년: 1명 (환경 1)\n• 2026년: 1명 (환경 1)",
+            "취업자특징": "• 대기환경기사 및 실무 경험자 중심 합격\n• 재맞고 / 멘토링 연계 가능 졸업생 2명 보유"
+        }
+    }
 
 if "crawled_info" not in st.session_state:
     st.session_state.crawled_info = {"대표자": "", "설립일": "", "매출액": "", "업종": "", "기업유형": ""}
@@ -366,9 +438,10 @@ elif menu == "📂 5. 기존 엑셀 일괄 업로드":
                 st.success("추가 완료!")
                 st.rerun()
 
-# --- 6. 기업 분석 보고서 생성 ---
+# --- 6. 기업 분석 보고서 생성 및 누적 관리 ---
 elif menu == "📝 6. 기업 분석 보고서 생성":
-    st.header("📝 기업 분석 및 추천채용 보고서 생성")
+    st.header("📝 기업 분석 보고서 작성 및 누적 DB 관리")
+    
     col_s1, col_s2 = st.columns([3, 1])
     with col_s1:
         target_search_comp = st.text_input("분석할 기업명 입력", value="하림산업")
@@ -382,7 +455,7 @@ elif menu == "📝 6. 기업 분석 보고서 생성":
     c_data = st.session_state.crawled_info
 
     with st.form("company_analysis_form"):
-        st.subheader("1️⃣ 기업 기본 개요 (자동 반영 항목)")
+        st.subheader("1️⃣ 기업 기본 개요")
         col_r1, col_r2, col_r3 = st.columns(3)
         with col_r1:
             r_comp = st.text_input("기업명", value=target_search_comp)
@@ -401,68 +474,131 @@ elif menu == "📝 6. 기업 분석 보고서 생성":
             r_dept = st.text_input("분석 직무/부서", value="환경자원팀")
 
         st.markdown("---")
-        st.subheader("2️⃣ 인재상 & 주요 직무 & 자격 요건 (채용 정보 직접 입력)")
+        st.subheader("2️⃣ 인재상 & 주요 직무 & 자격 요건")
         col_r4, col_r5 = st.columns(2)
         with col_r4:
             r_talents = st.text_area("기업 인재상", value="• 프로 인재상: 고도의 전문 능력과 열정의 소유자\n• 프로 리더상: 경영이념을 구현할 수 있는 자\n• 비즈니스 리더상: 비전 공유와 실천의 리더")
-            r_tasks = st.text_area("주요 업무 내용", value="1. 배출원 관리: 대기 배출시설 관리 및 SEMS 운영, 자가측정 일정 관리\n2. 환경시설물 관리: 폐수처리시설 운영 및 폐기물(AllBaro) 적법 처리\n3. 용수 관리: 저수조 탱크 청소 및 분석 법적 업무")
+            r_tasks = st.text_area("주요 업무 내용", value="1. 배출원 관리: 대기 배출시설 관리 및 SEMS 운영\n2. 환경시설물 관리: 폐수처리시설 운영 및 AllBaro 처리\n3. 용수 관리: 저수조 탱크 청소 및 분석")
         with col_r5:
-            r_req = st.text_area("자격 요건 & 우수 조건", value="• 자격요건: 학사 이상, 대기환경기사/수질환경기사 자격증 소지자\n• 우대조건: 환경공학 및 유사 학과 전공자, 글로벌 품질관리 담당자\n• 근무조건: 월~금 08:00~17:00")
-            r_issues = st.text_area("최근 기업 이슈 및 ESG 경영 동향", value="• 자원순환형 ESG 환경 관리: 수질/대기/유해화학물질 준수율 100% 목표\n• 용수 절감 및 폐기물(열매체유 등) 재활용 체계 강화\n• 화학물질 관리법 준수 및 주 1회 이상 정기 점검 진행")
+            r_req = st.text_area("자격 요건 & 우수 조건", value="• 학사 이상, 대기환경기사/수질환경기사 자격증 소지자\n• 우대조건: 환경공학 전공자, 글로벌 품질관리 담당자")
+            r_issues = st.text_area("최근 기업 이슈 및 ESG 경영 동향", value="• 자원순환형 ESG 환경 관리: 수질/대기 준수율 100% 목표\n• 화학물질 관리법 준수 및 정기 점검")
 
         st.markdown("---")
         st.subheader("3️⃣ 학생 상담용 추천 포인트 (취업전략팀 작성)")
-        r_tips = st.text_area("학생 지도 가이드라인", value="• 환경공학과 및 관련학과 졸업예정자 집중 추천\n• AllBaro 시스템 활용 경험 및 대기/수질기사 보유 여부 강조 필수\n• ESG 관련 현장 안전점검 지식 준비 권장")
+        r_tips = st.text_area("학생 지도 가이드라인", value="• 환경공학과 졸업예정자 집중 추천\n• AllBaro 시스템 활용 경험 강조 필수")
 
         st.markdown("---")
         st.subheader("4️⃣ 조선대학교 최근 취업자 현황 (최근 3~5개년)")
         col_history1, col_history2 = st.columns(2)
         with col_history1:
-            r_history_summary = st.text_area("연도별 조선대 취업자 수 및 학과", value="• 2024년: 2명 (환경공학과 1명, 전기공학과 1명)\n• 2025년: 1명 (환경공학과 1명)\n• 2026년 현재: 1명 (환경공학과 1명)")
+            r_history_summary = st.text_area("연도별 조선대 취업자 수 및 학과", value="• 2024년: 2명 (환경 1, 전기 1)\n• 2025년: 1명 (환경 1)\n• 2026년: 1명 (환경 1)")
         with col_history2:
-            r_history_notes = st.text_area("취업자 특징 및 주요 배치 직무", value="• 주요 배치 직무: 환경자원팀, 시설관리 파트\n• 특징: 대기환경기사 및 AllBaro 시스템 실무 경험 보유자 중심 합격\n• 재맞고 / 멘토링 연계 가능 졸업생 2명 보유")
+            r_history_notes = st.text_area("취업자 특징 및 주요 배치 직무", value="• 주요 배치 직무: 환경자원팀\n• 특징: 대기환경기사 및 AllBaro 경험자 중심 합격")
 
-        if st.form_submit_button("📄 기업 분석 보고서 완성하기"):
+        if st.form_submit_button("💾 기업 분석 보고서 누적 DB 저장하기"):
+            today_str = datetime.date.today().strftime('%Y-%m-%d')
             st.session_state.reports[r_comp] = {
+                "작성일": today_str,
                 "기본정보": {"기업명": r_comp, "대표자": r_ceo, "직원수": r_emp, "설립연도": r_est, "유형": r_type, "매출액": r_sales, "영업이익": r_profit, "위치": r_loc, "업종": r_industry, "홈페이지": r_url, "채용시기": r_period, "직무": r_dept},
                 "인재상": r_talents, "주요업무": r_tasks, "요건": r_req, "이슈": r_issues, "지도포인트": r_tips,
                 "취업자현황": r_history_summary, "취업자특징": r_history_notes
             }
-            st.success(f"{r_comp} 기업 분석 보고서가 성공적으로 생성되었습니다!")
+            st.success(f"'{r_comp}' 기업 분석 보고서가 누적 DB에 정상 저장되었습니다!")
 
+    # --- 누적 보고서 목록 및 A4 한장 인쇄 모드 ---
     if st.session_state.reports:
         st.markdown("---")
-        st.subheader("📋 생성된 기업 분석 보고서 미리보기")
-        selected_rep = st.selectbox("보고서를 선택하세요", list(st.session_state.reports.keys()))
-        rep_data = st.session_state.reports[selected_rep]
-
-        st.markdown(f"### 🏢 [{selected_rep}] 기업 분석 보고서")
-        st.caption(f"작성일: {datetime.date.today().strftime('%Y년 %m월 %d일')} | 작성: 조선대학교 취업학생처 취업전략팀")
-
-        info = rep_data["기본정보"]
-        st.markdown(f"""
-        | 항목 | 내용 | 항목 | 내용 |
-        |---|---|---|---|
-        | **기업명** | {info['기업명']} | **대표자** | {info['대표자']} |
-        | **직원 수** | {info['직원수']} | **설립 연도** | {info['설립연도']} |
-        | **매출액** | {info['매출액']} | **영업이익** | {info['영업이익']} |
-        | **기업 유형** | {info['유형']} | **업종** | {info['업종']} |
-        | **사업장 위치** | {info['위치']} | **채용 시기** | {info['채용시기']} |
-        """)
-
-        col_p1, col_p2 = st.columns(2)
-        with col_p1:
-            st.markdown("**🎯 기업 인재상**")
-            st.text(rep_data["인재상"])
-            st.markdown("**🛠️ 주요 업무 내용**")
-            st.text(rep_data["주요업무"])
-        with col_p2:
-            st.markdown("**📋 자격요건 및 우대조건**")
-            st.text(rep_data["요건"])
-            st.markdown("**💡 최근 기업 이슈 & ESG 동향**")
-            st.text(rep_data["이슈"])
-
-        st.warning(f"**🎓 [취업전략팀 지도 가이드]:**\n{rep_data['지도포인트']}")
+        st.subheader("📚 누적 저장된 기업 분석 보고서 목록")
         
-        if "취업자현황" in rep_data:
-            st.info(f"**🎓 [조선대학교 최근 취업자 현황]:**\n{rep_data['취업자현황']}\n\n**📌 [취업자 주요 특징 & 배치 직무]:**\n{rep_data['취업자특징']}")
+        col_rep_sel, col_rep_opt = st.columns([2, 1])
+        with col_rep_sel:
+            selected_rep = st.selectbox("조회/인쇄할 기업 분석 보고서 선택", list(st.session_state.reports.keys()))
+        with col_rep_opt:
+            print_mode = st.checkbox("🖨️ A4 1장 인쇄 / PDF 저장용 보기 모드")
+
+        rep_data = st.session_state.reports[selected_rep]
+        info = rep_data["기본정보"]
+
+        if print_mode:
+            st.info("💡 **인쇄 방법:** 브라우저에서 **`Ctrl + P`**를 누르시면 A4 한 장 규격 보고서로 바로 출력/PDF 저장됩니다.")
+            st.markdown(f"""
+            <div class="print-container">
+                <div class="report-card">
+                    <div class="report-header">
+                        <h2 style="margin:0; color:#003366;">🏢 추천채용 기업 분석 보고서 ({selected_rep})</h2>
+                        <p style="margin:5px 0 0 0; font-size:10pt; color:#666666;">조선대학교 취업학생처 취업전략팀 | 작성일: {rep_data.get('작성일', datetime.date.today())}</p>
+                    </div>
+                    <table class="report-table">
+                        <tr>
+                            <th>기업명</th><td>{info['기업명']}</td>
+                            <th>대표자</th><td>{info['대표자']}</td>
+                            <th>기업유형</th><td>{info['유형']}</td>
+                        </tr>
+                        <tr>
+                            <th>직원수</th><td>{info['직원수']}</td>
+                            <th>설립연도</th><td>{info['설립연도']}</td>
+                            <th>업종</th><td>{info['업종']}</td>
+                        </tr>
+                        <tr>
+                            <th>매출액</th><td>{info['매출액']}</td>
+                            <th>영업이익</th><td>{info['영업이익']}</td>
+                            <th>채용시기</th><td>{info['채용시기']}</td>
+                        </tr>
+                        <tr>
+                            <th>소재지</th><td colspan="3">{info['위치']}</td>
+                            <th>홈페이지</th><td>{info['홈페이지']}</td>
+                        </tr>
+                    </table>
+                    <div style="display:flex; gap:10px; margin-bottom:10px;">
+                        <div style="flex:1; border:1px solid #ddd; padding:8px; border-radius:4px;">
+                            <strong style="color:#003366;">🎯 기업 인재상 & 주요 업무</strong><br>
+                            <small>{rep_data['인재상']}</small><br><br>
+                            <small>{rep_data['주요업무']}</small>
+                        </div>
+                        <div style="flex:1; border:1px solid #ddd; padding:8px; border-radius:4px;">
+                            <strong style="color:#003366;">📋 자격요건 & 최근 이슈</strong><br>
+                            <small>{rep_data['요건']}</small><br><br>
+                            <small>{rep_data['이슈']}</small>
+                        </div>
+                    </div>
+                    <div style="border:1px solid #cce5ff; background-color:#f8f9fa; padding:10px; border-radius:4px; margin-bottom:10px;">
+                        <strong style="color:#004085;">🎓 조선대 최근 취업자 현황 및 주요 특징</strong><br>
+                        <small>{rep_data.get('취업자현황', '')}</small> | <small>{rep_data.get('취업자특징', '')}</small>
+                    </div>
+                    <div style="border:1px solid #ffeeba; background-color:#fff3cd; padding:10px; border-radius:4px;">
+                        <strong style="color:#856404;">💡 취업전략팀 지도 가이드라인</strong><br>
+                        <small>{rep_data['지도포인트']}</small>
+                    </div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.markdown(f"### 🏢 [{selected_rep}] 기업 분석 보고서")
+            st.caption(f"작성일: {rep_data.get('작성일', datetime.date.today())} | 작성: 조선대학교 취업학생처 취업전략팀")
+
+            st.markdown(f"""
+            | 항목 | 내용 | 항목 | 내용 |
+            |---|---|---|---|
+            | **기업명** | {info['기업명']} | **대표자** | {info['대표자']} |
+            | **직원 수** | {info['직원수']} | **설립 연도** | {info['설립연도']} |
+            | **매출액** | {info['매출액']} | **영업이익** | {info['영업이익']} |
+            | **기업 유형** | {info['유형']} | **업종** | {info['업종']} |
+            | **사업장 위치** | {info['위치']} | **채용 시기** | {info['채용시기']} |
+            """)
+
+            col_p1, col_p2 = st.columns(2)
+            with col_p1:
+                st.markdown("**🎯 기업 인재상**")
+                st.text(rep_data["인재상"])
+                st.markdown("**🛠️ 주요 업무 내용**")
+                st.text(rep_data["주요업무"])
+            with col_p2:
+                st.markdown("**📋 자격요건 및 우대조건**")
+                st.text(rep_data["요건"])
+                st.markdown("**💡 최근 기업 이슈 & ESG 동향**")
+                st.text(rep_data["이슈"])
+
+            st.warning(f"**🎓 [취업전략팀 지도 가이드]:**\n{rep_data['지도포인트']}")
+            
+            if "취업자현황" in rep_data:
+                st.info(f"**🎓 [조선대학교 최근 취업자 현황]:**\n{rep_data['취업자현황']}\n\n**📌 [취업자 주요 특징 & 배치 직무]:**\n{rep_data['취업자특징']}")
