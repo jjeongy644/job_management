@@ -9,12 +9,14 @@ from bs4 import BeautifulSoup
 
 st.set_page_config(page_title="조선대학교 추천채용 통합 관리 시스템", layout="wide")
 
-# 로고 파일 자동 감지 (png, jpg, jpeg 및 대소문자 통합 지원)
+# 로고 파일 자동 감지 (한글, 대소문자, 주요 확장자 전체 탐색)
 def get_logo_path():
-    possible_names = ["logo.png", "logo.jpg", "logo.jpeg", "Logo.png", "Logo.jpg", "Logo.jpeg", "LOGO.PNG", "LOGO.JPG"]
-    for name in possible_names:
-        if os.path.exists(name):
-            return name
+    files = os.listdir(".") if os.path.exists(".") else []
+    for f in files:
+        f_lower = f.lower()
+        if f_lower.startswith("logo") or "로고" in f_lower or "조선" in f_lower:
+            if f_lower.endswith((".png", ".jpg", ".jpeg", ".webp", ".gif")):
+                return f
     return None
 
 logo_file = get_logo_path()
