@@ -5,3 +5,4 @@ requests
 beautifulsoup4
 gspread
 oauth2client
+streamlit-gsheets
