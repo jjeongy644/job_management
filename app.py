@@ -30,6 +30,9 @@ def load_data_from_gs(sheet_name, default_columns):
 
 def save_data_to_gs(sheet_name, df):
     try:
+        # 데이터프레임 내의 결측치(NaN, None)를 빈 문자열로 치환하여 JSON 전송 에러를 방지합니다
+        df = df.fillna("")
+        
         data_to_send = [df.columns.values.tolist()] + df.values.tolist()
         payload = {
             "sheet": sheet_name
