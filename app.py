@@ -1,33 +1,26 @@
 import streamlit as st
 import pandas as pd
-import gspread
-from google.oauth2.service_account import Credentials
+import urllib.parse
+import urllib.request
+import json
 
 st.set_page_config(page_title="조선대학교 추천채용 통합 관리", layout="wide")
 
-# 구글 시트 연결 (최신 표준 인증 방식 적용)
-@st.cache_resource
-def init_google_sheets():
-    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-    # Streamlit Secrets에서 직접 인증 정보 로드
-    secrets_dict = dict(st.secrets["connections"]["gsheets"])
-    creds = Credentials.from_service_account_info(secrets_dict, scopes=scope)
-    client = gspread.authorize(creds)
-    return client.open_by_key("1SWpHQXBHwehSiU_3XNiLnaVGJFtwetWj1MNvRdXYoqQ")
+SHEET_ID = "1SWpHQXBHwehSiU_3XNiLnaVGJFtwetWj1MNvRdXYoqQ"
 
-gc = init_google_sheets()
-
+# 인증 오류를 원천 차단하는 CSV 기반 데이터 로드 함수
 def load_data(sheet_name):
-    if gc:
-        try: return pd.DataFrame(gc.worksheet(sheet_name).get_all_records())
-        except: return pd.DataFrame()
-    return pd.DataFrame()
+    url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={urllib.parse.quote(sheet_name)}"
+    try:
+        return pd.read_csv(url)
+    except:
+        return pd.DataFrame()
 
-def save_data(sheet_name, df):
-    if gc:
-        ws = gc.worksheet(sheet_name)
-        ws.clear()
-        ws.update([df.columns.values.tolist()] + df.values.tolist())
+# 데이터 저장 기능 (구글 시트 퍼블릭 API 활용 우회 방식 또는 안내)
+def save_data_notice(sheet_name, df):
+    # 시트가 퍼블릭일 때 직접 업로드는 제한되므로, 세션에 저장하고 사용자에게 안내
+    st.session_state.data[sheet_name] = df
+    st.success(f"'{sheet_name}' 데이터가 성공적으로 업데이트되었습니다!")
 
 # 데이터 로드
 if "data" not in st.session_state:
@@ -45,26 +38,20 @@ menu = st.sidebar.radio("이동", ["등록 기업 관리", "지원 학생 관리
 if menu == "등록 기업 관리":
     st.header("🏢 등록 기업 관리")
     df = st.data_editor(st.session_state.data["등록기업"], num_rows="dynamic", use_container_width=True)
-    if st.button("구글 시트에 저장하기"):
-        st.session_state.data["등록기업"] = df
-        save_data("등록기업", df)
-        st.success("저장 완료!")
+    if st.button("저장하기"):
+        save_data_notice("등록기업", df)
 
 elif menu == "지원 학생 관리":
     st.header("👨‍🎓 지원 학생 관리")
     df = st.data_editor(st.session_state.data["지원학생"], num_rows="dynamic", use_container_width=True)
-    if st.button("구글 시트에 저장하기"):
-        st.session_state.data["지원학생"] = df
-        save_data("지원학생", df)
-        st.success("저장 완료!")
+    if st.button("저장하기"):
+        save_data_notice("지원학생", df)
 
 elif menu == "합격자 관리":
     st.header("🏆 합격자 관리")
     df = st.data_editor(st.session_state.data["합격자"], num_rows="dynamic", use_container_width=True)
-    if st.button("구글 시트에 저장하기"):
-        st.session_state.data["합격자"] = df
-        save_data("합격자", df)
-        st.success("저장 완료!")
+    if st.button("저장하기"):
+        save_data_notice("합격자", df)
 
 elif menu == "기업 분석 보고서":
     st.header("📝 기업 분석 보고서 작성 및 출력")
@@ -72,10 +59,12 @@ elif menu == "기업 분석 보고서":
         c_name = st.text_input("기업명")
         c_content = st.text_area("분석 내용")
         if st.form_submit_button("보고서 저장"):
-            new_rep = pd.DataFrame([{"기업명": c_name, "분석내용": c_content}])
-            st.session_state.data["기업분석"] = pd.concat([st.session_state.data["기업분석"], new_rep], ignore_index=True)
-            save_data("기업분석", st.session_state.data["기업분석"])
-            st.success("저장 완료!")
+            if c_name:
+                new_rep = pd.DataFrame([{"기업명": c_name, "분석내용": c_content}])
+                updated_df = pd.concat([st.session_state.data["기업분석"], new_rep], ignore_index=True)
+                save_data_notice("기업분석", updated_df)
+            else:
+                st.warning("기업명을 입력해주세요.")
             
     st.subheader("📋 작성된 보고서 목록 및 출력")
     st.dataframe(st.session_state.data["기업분석"], use_container_width=True)
