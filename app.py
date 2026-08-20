@@ -9,7 +9,7 @@ from bs4 import BeautifulSoup
 
 st.set_page_config(page_title="조선대학교 추천채용 통합 관리 시스템", layout="wide")
 
-# --- 데이터 영구 저장소 설정 ---
+# --- 데이터 영구 저장소 설정 (안전장치 강화) ---
 DATA_DIR = "saved_data"
 if not os.path.exists(DATA_DIR):
     os.makedirs(DATA_DIR)
@@ -19,19 +19,25 @@ def load_data(filename, default_columns):
     if os.path.exists(filepath):
         try:
             df = pd.read_csv(filepath)
-            for col in df.columns:
-                if "일" in col or "날짜" in col or "기간" in col or "일자" in col:
-                    df[col] = df[col].astype(str).str.split(" ").str[0].replace("nan", "").replace("NaT", "")
-            return df
+            # 데이터가 비어있지 않다면 날짜 정제 및 결측치 처리
+            if len(df) > 0:
+                for col in df.columns:
+                    if "일" in col or "날짜" in col or "기간" in col or "일자" in col:
+                        df[col] = df[col].astype(str).str.split(" ").str[0].replace("nan", "").replace("NaT", "")
+                return df
         except:
             return pd.DataFrame(columns=default_columns)
     return pd.DataFrame(columns=default_columns)
 
 def save_data(filename, df):
     filepath = os.path.join(DATA_DIR, filename)
-    df.to_csv(filepath, index=False)
+    # 데이터를 안전하게 디스크에 강제 기록하기 위한 파일 플러시(flush) 처리
+    with open(filepath, "w", encoding="utf-8") as f:
+        df.to_csv(f, index=False)
+        f.flush()
+        os.fsync(f.fileno())
 
-# --- 앱 시작 시 무조건 파일에서 불러오기 (새로고침 초기화 방지) ---
+# --- 앱 시작 시 무조건 파일에서 불러오기 ---
 if "companies" not in st.session_state:
     st.session_state.companies = load_data("companies.csv", ["연번", "등록일", "기업명", "모집기간", "담당자성명", "직급", "내선번호", "연락처", "e-mail", "채용공고일자", "직무", "비고"])
 if "applicants" not in st.session_state:
@@ -115,7 +121,7 @@ def create_template(target_type):
             df_tpl.to_excel(writer, sheet_name='지원학생_양식', index=False)
     return output.getvalue()
 
-# --- 사이드바 메뉴 (에러 방지를 위해 반드시 이 위치에 존재해야 함) ---
+# --- 사이드바 메뉴 ---
 menu = st.sidebar.selectbox("메뉴 선택", [
     "1. 등록 기업 관리", 
     "2. 지원 학생 관리", 
@@ -475,7 +481,7 @@ elif menu == "6. 기업 분석 보고서 생성":
             st.markdown("**📋 자격요건 및 우대조건**")
             st.text(rep_data["요건"])
             st.markdown("**💡 최근 기업 이슈 & ESG 동향**")
-            st.text(rep_data["is이슈" if "is이슈" in rep_data else "이슈"]) # 안전 처리
+            st.text(rep_data["이슈"] if "이슈" in rep_data else "")
 
         st.warning(f"**🎓 [취업전략팀 지도 가이드]:**\n{rep_data['지도포인트']}")
         st.info(f"**👥 [조선대학교 동문 진출 현황]:**\n{rep_data['동문현황']}")
