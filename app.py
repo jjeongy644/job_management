@@ -373,7 +373,7 @@ elif menu == "5. 기존 엑셀 일괄 업로드":
         if uploaded_file is not None:
             df_upload = pd.read_excel(uploaded_file)
             
-            # [안전장치 추가] 날짜/시간(00:00:00) 포함 문자열 변환 에러 방지
+            # 날짜/시간(00:00:00) 정제
             for col in df_upload.columns:
                 if "일" in col or "날짜" in col or "기간" in col or "일자" in col:
                     df_upload[col] = df_upload[col].astype(str).apply(lambda x: x.split(" ")[0] if pd.notnull(x) and x != "nan" else "")
@@ -381,9 +381,14 @@ elif menu == "5. 기존 엑셀 일괄 업로드":
             st.dataframe(df_upload, use_container_width=True)
             if st.button("시스템에 이 데이터 통합 및 저장하기"):
                 if target_upload == "등록 기업 목록":
+                    # 연번 재정렬 안전장치
+                    start_no = len(st.session_state.companies) + 1
+                    df_upload["연번"] = range(start_no, start_no + len(df_upload))
                     st.session_state.companies = pd.concat([st.session_state.companies, df_upload], ignore_index=True)
                     save_persistent_data("companies.csv", st.session_state.companies)
                 elif target_upload == "지원 학생 목록":
+                    start_no = len(st.session_state.applicants) + 1
+                    df_upload["연번"] = range(start_no, start_no + len(df_upload))
                     st.session_state.applicants = pd.concat([st.session_state.applicants, df_upload], ignore_index=True)
                     save_persistent_data("applicants.csv", st.session_state.applicants)
                 st.success("데이터 통합 및 저장 완료!")
