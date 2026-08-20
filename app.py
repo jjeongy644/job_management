@@ -95,7 +95,7 @@ def fetch_naver_company_info(comp_name):
         pass
     return info
 
-# 세션 초기화
+# 세션 초기화 (서버 파일과 완벽 연동)
 default_companies = pd.DataFrame(columns=[
     "연번", "등록일", "기업명", "모집기간", "담당자성명", "직급", "내선번호", "연락처", "e-mail", "채용공고일자", "직무", "비고"
 ])
@@ -109,9 +109,9 @@ if "applicants" not in st.session_state:
     st.session_state.applicants = load_persistent_data("applicants.csv", default_applicants)
 
 if "passed" not in st.session_state:
-    st.session_state.passed = pd.DataFrame([
+    st.session_state.passed = load_persistent_data("passed.csv", pd.DataFrame([
         {"연번": 1, "합격일자": "2026-06-25", "학번": "20201234", "이름": "김철수", "학과": "전기공학과", "연락처": "010-1111-2222", "기업명": "수완에너지(주)", "직무": "운영 파트", "입사일": "2026-07-01", "재직상태": "재직중", "멘토가능여부": True, "비고": "수습 진행 중"}
-    ])
+    ]))
 
 if "reports" not in st.session_state:
     st.session_state.reports = {}
@@ -142,7 +142,7 @@ menu = st.sidebar.selectbox("메뉴 선택", [
 # --- 1. 등록 기업 관리 ---
 if menu == "1. 등록 기업 관리":
     st.header("🏢 추천채용 등록 기업 & HR 담당자 리스트")
-    st.info("💡 표 안의 항목(등록일 포함)을 더블클릭하여 자유롭게 수정할 수 있습니다.")
+    st.info("💡 표 안의 항목을 더블클릭하여 수정할 수 있습니다.")
     
     edited_companies = st.data_editor(
         st.session_state.companies, 
@@ -154,7 +154,7 @@ if menu == "1. 등록 기업 관리":
 
     if st.button("저장하기"):
         save_persistent_data("companies.csv", st.session_state.companies)
-        st.success("등록 기업 데이터가 안전하게 저장되었습니다!")
+        st.success("등록 기업 데이터가 영구 저장되었습니다!")
 
     st.markdown("---")
     col_search, col_form = st.columns([1, 2])
@@ -215,7 +215,7 @@ elif menu == "2. 지원 학생 관리":
 
     if st.button("저장하기"):
         save_persistent_data("applicants.csv", st.session_state.applicants)
-        st.success("지원 학생 데이터가 안전하게 저장되었습니다!")
+        st.success("지원 학생 데이터가 영구 저장되었습니다!")
 
     st.markdown("---")
     st.subheader("➕ 신규 지원자 접수")
@@ -252,10 +252,6 @@ elif menu == "2. 지원 학생 관리":
 # --- 3. 합격자 DB & 멘토 풀 ---
 elif menu == "3. 합격자 DB & 멘토 풀":
     st.header("🏆 합격자 데이터베이스 & 실무 멘토 풀")
-    default_passed = pd.DataFrame([{"연번": 1, "합격일자": "2026-06-25", "학번": "20201234", "이름": "김철수", "학과": "전기공학과", "연락처": "010-1111-2222", "기업명": "수완에너지(주)", "직무": "운영 파트", "입사일": "2026-07-01", "재직상태": "재직중", "멘토가능여부": True, "비고": "수습 진행 중"}])
-    if "passed" not in st.session_state:
-        st.session_state.passed = load_persistent_data("passed.csv", default_passed)
-        
     edited_passed = st.data_editor(st.session_state.passed, use_container_width=True, num_rows="dynamic")
     st.session_state.passed = edited_passed
     if st.button("저장하기"):
@@ -381,17 +377,16 @@ elif menu == "5. 기존 엑셀 일괄 업로드":
             st.dataframe(df_upload, use_container_width=True)
             if st.button("시스템에 이 데이터 통합 및 저장하기"):
                 if target_upload == "등록 기업 목록":
-                    # 연번 재정렬 안전장치
                     start_no = len(st.session_state.companies) + 1
                     df_upload["연번"] = range(start_no, start_no + len(df_upload))
                     st.session_state.companies = pd.concat([st.session_state.companies, df_upload], ignore_index=True)
-                    save_persistent_data("companies.csv", st.session_state.companies)
+                    save_persistent_data("companies.csv", st.session_state.companies) # [영구 저장 즉시 반영]
                 elif target_upload == "지원 학생 목록":
                     start_no = len(st.session_state.applicants) + 1
                     df_upload["연번"] = range(start_no, start_no + len(df_upload))
                     st.session_state.applicants = pd.concat([st.session_state.applicants, df_upload], ignore_index=True)
-                    save_persistent_data("applicants.csv", st.session_state.applicants)
-                st.success("데이터 통합 및 저장 완료!")
+                    save_persistent_data("applicants.csv", st.session_state.applicants) # [영구 저장 즉시 반영]
+                st.success("데이터 통합 및 영구 저장 완료!")
                 st.rerun()
 
 # --- 6. 기업 분석 보고서 생성 ---
