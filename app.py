@@ -9,7 +9,7 @@ from bs4 import BeautifulSoup
 
 st.set_page_config(page_title="조선대학교 추천채용 통합 관리 시스템", layout="wide")
 
-# --- 데이터 영구 저장소 설정 (안전장치 강화) ---
+# --- 데이터 영구 저장소 설정 ---
 DATA_DIR = "saved_data"
 if not os.path.exists(DATA_DIR):
     os.makedirs(DATA_DIR)
@@ -19,7 +19,6 @@ def load_data(filename, default_columns):
     if os.path.exists(filepath):
         try:
             df = pd.read_csv(filepath)
-            # 데이터가 비어있지 않다면 날짜 정제 및 결측치 처리
             if len(df) > 0:
                 for col in df.columns:
                     if "일" in col or "날짜" in col or "기간" in col or "일자" in col:
@@ -31,8 +30,7 @@ def load_data(filename, default_columns):
 
 def save_data(filename, df):
     filepath = os.path.join(DATA_DIR, filename)
-    # 데이터를 안전하게 디스크에 강제 기록하기 위한 파일 플러시(flush) 처리
-    with open(filepath, "w", encoding="utf-8") as f:
+    with open(filepath, "w", encoding="utf-8-sig") as f:
         df.to_csv(f, index=False)
         f.flush()
         os.fsync(f.fileno())
@@ -374,15 +372,31 @@ elif menu == "5. 기존 엑셀 일괄 업로드":
             st.dataframe(df_upload, use_container_width=True)
             if st.button("시스템에 이 데이터 통합 및 저장하기"):
                 if target_upload == "등록 기업 목록":
+                    # 컬럼 구조 엄격히 맞추기
+                    default_cols = ["연번", "등록일", "기업명", "모집기간", "담당자성명", "직급", "내선번호", "연락처", "e-mail", "채용공고일자", "직무", "비고"]
+                    for c in default_cols:
+                        if c not in df_upload.columns:
+                            df_upload[c] = ""
+                    df_upload = df_upload[default_cols]
+                    
                     start_no = len(st.session_state.companies) + 1
                     df_upload["연번"] = range(start_no, start_no + len(df_upload))
                     st.session_state.companies = pd.concat([st.session_state.companies, df_upload], ignore_index=True)
                     save_data("companies.csv", st.session_state.companies)
+                    
                 elif target_upload == "지원 학생 목록":
+                    # 컬럼 구조 엄격히 맞추기
+                    default_cols = ["연번", "지원일자", "지원기업", "지원직무", "성명", "학과", "학번", "학적", "졸업(예정)일", "연락처", "이메일", "공고시기", "진행상태"]
+                    for c in default_cols:
+                        if c not in df_upload.columns:
+                            df_upload[c] = ""
+                    df_upload = df_upload[default_cols]
+                    
                     start_no = len(st.session_state.applicants) + 1
                     df_upload["연번"] = range(start_no, start_no + len(df_upload))
                     st.session_state.applicants = pd.concat([st.session_state.applicants, df_upload], ignore_index=True)
                     save_data("applicants.csv", st.session_state.applicants)
+                    
                 st.success("데이터 통합 및 영구 저장 완료!")
                 st.rerun()
 
