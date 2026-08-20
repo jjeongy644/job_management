@@ -11,7 +11,7 @@ from google.oauth2.service_account import Credentials
 
 st.set_page_config(page_title="조선대학교 추천채용 통합 관리 시스템", layout="wide")
 
-# --- 구글 시트 연결 설정 (google-auth 파일 직접 연동 방식) ---
+# --- 구글 시트 연결 설정 (google-auth 최신 표준 방식) ---
 def get_google_sheet():
     scope = [
         "https://spreadsheets.google.com/feeds",
