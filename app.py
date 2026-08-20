@@ -6,17 +6,29 @@ import os
 import urllib.parse
 import requests
 from bs4 import BeautifulSoup
-from streamlit_gsheets import GSheetsConnection
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
 
 st.set_page_config(page_title="조선대학교 추천채용 통합 관리 시스템", layout="wide")
 
-# --- 구글 시트 연결 (streamlit-gsheets 활용) ---
-conn = st.connection("gsheets", type=GSheetsConnection)
+# --- 구글 시트 연결 설정 (오전의 가장 안전한 표준 방식) ---
+def get_google_sheet():
+    creds_dict = dict(st.secrets["gcp_service_account"])
+    scope = [
+        "https://spreadsheets.google.com/feeds",
+        "https://www.googleapis.com/auth/drive"
+    ]
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+    client = gspread.authorize(creds)
+    return client.open("추천채용통합DB")
 
-def load_data_from_gs(worksheet_name, default_columns):
+def load_data_from_gs(sheet_name, default_columns):
     try:
-        df = conn.read(worksheet=worksheet_name, ttl=0)
-        if df is not None and not df.empty:
+        sh = get_google_sheet()
+        ws = sh.worksheet(sheet_name)
+        data = ws.get_all_records()
+        if data:
+            df = pd.DataFrame(data)
             for col in df.columns:
                 if "일" in col or "날짜" in col or "기간" in col or "일자" in col:
                     df[col] = df[col].astype(str).str.split(" ").str[0].replace("nan", "").replace("NaT", "")
@@ -26,9 +38,14 @@ def load_data_from_gs(worksheet_name, default_columns):
     except Exception as e:
         return pd.DataFrame(columns=default_columns)
 
-def save_data_to_gs(worksheet_name, df):
+def save_data_to_gs(sheet_name, df):
     try:
-        conn.update(worksheet=worksheet_name, data=df)
+        sh = get_google_sheet()
+        ws = sh.worksheet(sheet_name)
+        ws.clear()
+        data_to_update = [df.columns.values.tolist()] + df.values.tolist()
+        ws.update(data_to_update)
+        st.success("구글 시트에 데이터가 안전하게 저장되었습니다!")
     except Exception as e:
         st.error(f"구글 시트 저장 실패: {e}")
 
@@ -139,7 +156,6 @@ if menu == "1. 등록 기업 관리":
 
     if st.button("저장하기"):
         save_data_to_gs("companies", st.session_state.companies)
-        st.success("등록 기업 데이터가 구글 시트에 안전하게 저장되었습니다!")
 
     st.markdown("---")
     col_search, col_form = st.columns([1, 2])
@@ -181,7 +197,7 @@ if menu == "1. 등록 기업 관리":
                 }
                 st.session_state.companies = pd.concat([st.session_state.companies, pd.DataFrame([new_c])], ignore_index=True)
                 save_data_to_gs("companies", st.session_state.companies)
-                st.success(f"{c_name} 등록 및 저장 완료!")
+                st.success(f"{c_name} 등록 완료!")
                 st.rerun()
 
 # --- 2. 지원 학생 관리 ---
@@ -197,7 +213,6 @@ elif menu == "2. 지원 학생 관리":
 
     if st.button("저장하기"):
         save_data_to_gs("applicants", st.session_state.applicants)
-        st.success("지원 학생 데이터가 구글 시트에 안전하게 저장되었습니다!")
 
     st.markdown("---")
     st.subheader("➕ 신규 지원자 접수")
@@ -228,7 +243,7 @@ elif menu == "2. 지원 학생 관리":
             }
             st.session_state.applicants = pd.concat([st.session_state.applicants, pd.DataFrame([new_a])], ignore_index=True)
             save_data_to_gs("applicants", st.session_state.applicants)
-            st.success(f"{a_name} 학생 등록 및 저장 완료!")
+            st.success(f"{a_name} 학생 등록 완료!")
             st.rerun()
 
 # --- 3. 합격자 DB & 멘토 풀 ---
@@ -243,7 +258,6 @@ elif menu == "3. 합격자 DB & 멘토 풀":
     st.session_state.passed = edited_passed
     if st.button("저장하기"):
         save_data_to_gs("passed", st.session_state.passed)
-        st.success("합격자 DB가 구글 시트에 저장되었습니다!")
 
 # --- 4. 추천채용 실적 및 주간/월간 보고 ---
 elif menu == "4. 추천채용 실적 및 주간/월간 보고":
