@@ -11,14 +11,14 @@ from google.oauth2.service_account import Credentials
 
 st.set_page_config(page_title="조선대학교 추천채용 통합 관리 시스템", layout="wide")
 
-# --- 구글 시트 연결 설정 (google-auth 세션 연동 방식) ---
+# --- 구글 시트 연결 설정 (Secrets 기반의 가장 안전한 방식) ---
 def get_google_sheet():
+    creds_dict = dict(st.secrets["gcp_service_account"])
     scope = [
         "https://spreadsheets.google.com/feeds",
         "https://www.googleapis.com/auth/drive"
     ]
-    creds = Credentials.from_service_account_file("service_account.json", scopes=scope)
-    # gspread 대신 google-auth 인증 객체를 직접 authorize에 태워 세션 충돌을 방지합니다
+    creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
     client = gspread.authorize(creds)
     return client.open("추천채용통합DB")
 
