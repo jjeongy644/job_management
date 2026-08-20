@@ -44,7 +44,6 @@ def load_persistent_data(filename, default_df):
     if os.path.exists(filepath):
         try:
             df = pd.read_csv(filepath)
-            # 날짜 데이터에 00:00:00이 붙어있다면 날짜까지만 깔끔하게 자름
             for col in df.columns:
                 if "일" in col or "날짜" in col or "기간" in col or "일자" in col:
                     df[col] = df[col].astype(str).str.split(" ").str[0].replace("nan", "").replace("NaT", "")
@@ -145,7 +144,6 @@ if menu == "1. 등록 기업 관리":
     st.header("🏢 추천채용 등록 기업 & HR 담당자 리스트")
     st.info("💡 표 안의 항목(등록일 포함)을 더블클릭하여 자유롭게 수정할 수 있습니다.")
     
-    # [수정완료] 연번만 잠그고, 등록일을 포함한 나머지 모든 칸은 표에서 직접 수정 가능하게 오픈
     edited_companies = st.data_editor(
         st.session_state.companies, 
         use_container_width=True, 
@@ -374,10 +372,11 @@ elif menu == "5. 기존 엑셀 일괄 업로드":
         uploaded_file = st.file_uploader("작성 완료된 엑셀 파일(.xlsx)을 드래그하세요.", type=["xlsx", "xls"])
         if uploaded_file is not None:
             df_upload = pd.read_excel(uploaded_file)
-            # [수정완료] 업로드된 데이터에 00:00:00이 포함되어 있다면 날짜만 깔끔하게 정제
+            
+            # [안전장치 추가] 날짜/시간(00:00:00) 포함 문자열 변환 에러 방지
             for col in df_upload.columns:
                 if "일" in col or "날짜" in col or "기간" in col or "일자" in col:
-                    df_upload[col] = df_upload[col].astype(str).str.split(" ").str[0].replace("nan", "").replace("NaT", "")
+                    df_upload[col] = df_upload[col].astype(str).apply(lambda x: x.split(" ")[0] if pd.notnull(x) and x != "nan" else "")
             
             st.dataframe(df_upload, use_container_width=True)
             if st.button("시스템에 이 데이터 통합 및 저장하기"):
