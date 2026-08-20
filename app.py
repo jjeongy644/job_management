@@ -6,46 +6,39 @@ import os
 import urllib.parse
 import requests
 from bs4 import BeautifulSoup
-import gspread
-from google.oauth2.service_account import Credentials
 
 st.set_page_config(page_title="조선대학교 추천채용 통합 관리 시스템", layout="wide")
 
-# --- 구글 시트 연결 설정 (시간 동기화 오차 없는 파일 직접 연동 방식) ---
-def get_google_sheet():
-    scope = [
-        "https://spreadsheets.google.com/feeds",
-        "https://www.googleapis.com/auth/drive"
-    ]
-    # 깃허브에 업로드된 service_account.json 파일을 직접 타겟팅하여 서명 에러를 우회합니다
-    creds = Credentials.from_service_account_file("service_account.json", scopes=scope)
-    client = gspread.authorize(creds)
-    return client.open("추천채용통합DB")
+# --- 구글 앱스 스크립트 웹훅 연동 설정 (인증 에러 100% 원천 차단) ---
+WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw1LsiV82_NdIPN85McoXs-L4hxrPxQ3xiV94zOEtN2KK8gChYSXPiMVhHplR9PLDAIOQ/exec"
 
 def load_data_from_gs(sheet_name, default_columns):
     try:
-        sh = get_google_sheet()
-        ws = sh.worksheet(sheet_name)
-        data = ws.get_all_records()
-        if data:
-            df = pd.DataFrame(data)
-            for col in df.columns:
-                if "일" in col or "날짜" in col or "기간" in col or "일자" in col:
-                    df[col] = df[col].astype(str).str.split(" ").str[0].replace("nan", "").replace("NaT", "")
-            return df
-        else:
-            return pd.DataFrame(columns=default_columns)
+        url = f"{WEB_APP_URL}?sheet={sheet_name}"
+        res = requests.get(url, timeout=5)
+        if res.status_code == 200 and res.text:
+            data = res.json()
+            if data and len(data) > 1:
+                df = pd.DataFrame(data[1:], columns=data[0])
+                for col in df.columns:
+                    if "일" in col or "날짜" in col or "기간" in col or "일자" in col:
+                        df[col] = df[col].astype(str).str.split(" ").str[0].replace("nan", "").replace("NaT", "")
+                return df
+        return pd.DataFrame(columns=default_columns)
     except Exception as e:
         return pd.DataFrame(columns=default_columns)
 
 def save_data_to_gs(sheet_name, df):
     try:
-        sh = get_google_sheet()
-        ws = sh.worksheet(sheet_name)
-        ws.clear()
-        data_to_update = [df.columns.values.tolist()] + df.values.tolist()
-        ws.update(data_to_update)
-        st.success("구글 시트에 데이터가 안전하게 저장되었습니다!")
+        data_to_send = [df.columns.values.tolist()] + df.values.tolist()
+        payload = {
+            "sheet": sheet_name
+        }
+        response = requests.post(WEB_APP_URL, params=payload, json=data_to_send)
+        if response.status_code == 200:
+            st.success("구글 시트에 데이터가 안전하게 저장되었습니다!")
+        else:
+            st.error(f"구글 시트 저장 실패 (코드: {response.status_code})")
     except Exception as e:
         st.error(f"구글 시트 저장 실패: {e}")
 
