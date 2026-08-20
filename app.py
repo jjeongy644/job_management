@@ -34,7 +34,7 @@ with col_title:
 
 st.markdown("---")
 
-# --- 데이터 영구 축적을 위한 파일 자동 로드/저장 함수 ---
+# --- 데이터 영구 축적을 위한 함수 ---
 DATA_DIR = "saved_data"
 if not os.path.exists(DATA_DIR):
     os.makedirs(DATA_DIR)
@@ -43,7 +43,12 @@ def load_persistent_data(filename, default_df):
     filepath = os.path.join(DATA_DIR, filename)
     if os.path.exists(filepath):
         try:
-            return pd.read_csv(filepath)
+            df = pd.read_csv(filepath)
+            # 날짜 데이터에 00:00:00이 붙어있다면 날짜까지만 깔끔하게 자름
+            for col in df.columns:
+                if "일" in col or "날짜" in col or "기간" in col or "일자" in col:
+                    df[col] = df[col].astype(str).str.split(" ").str[0].replace("nan", "").replace("NaT", "")
+            return df
         except:
             return default_df
     return default_df
@@ -91,7 +96,7 @@ def fetch_naver_company_info(comp_name):
         pass
     return info
 
-# 세션 초기화 (연번 포함 헤더 구조)
+# 세션 초기화
 default_companies = pd.DataFrame(columns=[
     "연번", "등록일", "기업명", "모집기간", "담당자성명", "직급", "내선번호", "연락처", "e-mail", "채용공고일자", "직무", "비고"
 ])
@@ -104,13 +109,17 @@ default_applicants = pd.DataFrame(columns=[
 if "applicants" not in st.session_state:
     st.session_state.applicants = load_persistent_data("applicants.csv", default_applicants)
 
+if "passed" not in st.session_state:
+    st.session_state.passed = pd.DataFrame([
+        {"연번": 1, "합격일자": "2026-06-25", "학번": "20201234", "이름": "김철수", "학과": "전기공학과", "연락처": "010-1111-2222", "기업명": "수완에너지(주)", "직무": "운영 파트", "입사일": "2026-07-01", "재직상태": "재직중", "멘토가능여부": True, "비고": "수습 진행 중"}
+    ])
+
 if "reports" not in st.session_state:
     st.session_state.reports = {}
 
 if "crawled_info" not in st.session_state:
     st.session_state.crawled_info = {"대표자": "", "설립일": "", "매출액": "", "업종": "", "기업유형": ""}
 
-# 표준 양식 생성 함수
 def create_template(target_type):
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
@@ -122,13 +131,21 @@ def create_template(target_type):
             df_tpl.to_excel(writer, sheet_name='지원학생_양식', index=False)
     return output.getvalue()
 
-menu = st.sidebar.selectbox("📂 메뉴 선택", ["1. 등록 기업 관리", "2. 지원 학생 관리", "3. 합격자 DB & 멘토 풀", "4. 추천채용 실적 및 주간/월간 보고", "📂 5. 기존 엑셀 일괄 업로드", "📝 6. 기업 분석 보고서 생성"])
+menu = st.sidebar.selectbox("메뉴 선택", [
+    "1. 등록 기업 관리", 
+    "2. 지원 학생 관리", 
+    "3. 합격자 DB & 멘토 풀", 
+    "4. 추천채용 실적 및 주간/월간 보고", 
+    "5. 기존 엑셀 일괄 업로드", 
+    "6. 기업 분석 보고서 생성"
+])
 
 # --- 1. 등록 기업 관리 ---
 if menu == "1. 등록 기업 관리":
     st.header("🏢 추천채용 등록 기업 & HR 담당자 리스트")
-    st.info("💡 표 안의 항목을 수정하거나 행을 추가한 뒤, 아래 **[DB에 영구 저장하기]** 버튼을 꼭 눌러주세요!")
+    st.info("💡 표 안의 항목(등록일 포함)을 더블클릭하여 자유롭게 수정할 수 있습니다.")
     
+    # [수정완료] 연번만 잠그고, 등록일을 포함한 나머지 모든 칸은 표에서 직접 수정 가능하게 오픈
     edited_companies = st.data_editor(
         st.session_state.companies, 
         use_container_width=True, 
@@ -137,9 +154,9 @@ if menu == "1. 등록 기업 관리":
     )
     st.session_state.companies = edited_companies
 
-    if st.button("💾 등록 기업 DB에 영구 저장하기", type="primary"):
+    if st.button("저장하기"):
         save_persistent_data("companies.csv", st.session_state.companies)
-        st.success("등록 기업 데이터가 안전하게 영구 저장되었습니다!")
+        st.success("등록 기업 데이터가 안전하게 저장되었습니다!")
 
     st.markdown("---")
     col_search, col_form = st.columns([1, 2])
@@ -182,13 +199,13 @@ if menu == "1. 등록 기업 관리":
                 }
                 st.session_state.companies = pd.concat([st.session_state.companies, pd.DataFrame([new_c])], ignore_index=True)
                 save_persistent_data("companies.csv", st.session_state.companies)
-                st.success(f"{c_name} (담당자: {hr_name}) 등록 및 영구 저장 완료!")
+                st.success(f"{c_name} (담당자: {hr_name}) 등록 및 저장 완료!")
                 st.rerun()
 
 # --- 2. 지원 학생 관리 ---
 elif menu == "2. 지원 학생 관리":
     st.header("👨‍🎓 지원 학생 상세 리스트")
-    st.info("💡 지원자 정보를 관리하고 아래 **[DB에 영구 저장하기]** 버튼을 눌러주세요.")
+    st.info("💡 지원자 정보를 관리하고 아래 저장 버튼을 눌러주세요.")
     
     edited_applicants = st.data_editor(
         st.session_state.applicants, 
@@ -198,9 +215,9 @@ elif menu == "2. 지원 학생 관리":
     )
     st.session_state.applicants = edited_applicants
 
-    if st.button("💾 지원 학생 DB에 영구 저장하기", type="primary"):
+    if st.button("저장하기"):
         save_persistent_data("applicants.csv", st.session_state.applicants)
-        st.success("지원 학생 데이터가 안전하게 영구 저장되었습니다!")
+        st.success("지원 학생 데이터가 안전하게 저장되었습니다!")
 
     st.markdown("---")
     st.subheader("➕ 신규 지원자 접수")
@@ -231,7 +248,7 @@ elif menu == "2. 지원 학생 관리":
             }
             st.session_state.applicants = pd.concat([st.session_state.applicants, pd.DataFrame([new_a])], ignore_index=True)
             save_persistent_data("applicants.csv", st.session_state.applicants)
-            st.success(f"{a_name} 학생 ({a_id}) 등록 및 영구 저장 완료!")
+            st.success(f"{a_name} 학생 ({a_id}) 등록 및 저장 완료!")
             st.rerun()
 
 # --- 3. 합격자 DB & 멘토 풀 ---
@@ -243,7 +260,7 @@ elif menu == "3. 합격자 DB & 멘토 풀":
         
     edited_passed = st.data_editor(st.session_state.passed, use_container_width=True, num_rows="dynamic")
     st.session_state.passed = edited_passed
-    if st.button("💾 합격자 DB 영구 저장"):
+    if st.button("저장하기"):
         save_persistent_data("passed.csv", st.session_state.passed)
         st.success("저장 완료!")
 
@@ -319,7 +336,6 @@ elif menu == "4. 추천채용 실적 및 주간/월간 보고":
             else:
                 st.info("시각화할 데이터가 부족합니다.")
 
-    # --- 엑셀 다운로드 버튼 추가 ---
     st.markdown("---")
     st.subheader("📥 전체 데이터 엑셀 내보내기")
     @st.cache_data
@@ -340,7 +356,7 @@ elif menu == "4. 추천채용 실적 및 주간/월간 보고":
     )
 
 # --- 5. 기존 엑셀 일괄 업로드 ---
-elif menu == "📂 5. 기존 엑셀 일괄 업로드":
+elif menu == "5. 기존 엑셀 일괄 업로드":
     st.header("📂 기존 엑셀 데이터 불러오기")
     col_up1, col_up2 = st.columns([1, 1])
     with col_up1:
@@ -358,19 +374,24 @@ elif menu == "📂 5. 기존 엑셀 일괄 업로드":
         uploaded_file = st.file_uploader("작성 완료된 엑셀 파일(.xlsx)을 드래그하세요.", type=["xlsx", "xls"])
         if uploaded_file is not None:
             df_upload = pd.read_excel(uploaded_file)
+            # [수정완료] 업로드된 데이터에 00:00:00이 포함되어 있다면 날짜만 깔끔하게 정제
+            for col in df_upload.columns:
+                if "일" in col or "날짜" in col or "기간" in col or "일자" in col:
+                    df_upload[col] = df_upload[col].astype(str).str.split(" ").str[0].replace("nan", "").replace("NaT", "")
+            
             st.dataframe(df_upload, use_container_width=True)
-            if st.button("시스템에 이 데이터 통합 및 영구 저장하기"):
+            if st.button("시스템에 이 데이터 통합 및 저장하기"):
                 if target_upload == "등록 기업 목록":
                     st.session_state.companies = pd.concat([st.session_state.companies, df_upload], ignore_index=True)
                     save_persistent_data("companies.csv", st.session_state.companies)
                 elif target_upload == "지원 학생 목록":
                     st.session_state.applicants = pd.concat([st.session_state.applicants, df_upload], ignore_index=True)
                     save_persistent_data("applicants.csv", st.session_state.applicants)
-                st.success("데이터 통합 및 영구 저장 완료!")
+                st.success("데이터 통합 및 저장 완료!")
                 st.rerun()
 
 # --- 6. 기업 분석 보고서 생성 ---
-elif menu == "📝 6. 기업 분석 보고서 생성":
+elif menu == "6. 기업 분석 보고서 생성":
     st.header("📝 기업 분석 및 추천채용 보고서 생성")
     col_s1, col_s2 = st.columns([3, 1])
     with col_s1:
