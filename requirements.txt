@@ -1,4 +1,6 @@
 streamlit
 pandas
-gspread
+openpyxl
+requests
+beautifulsoup4
 streamlit-gsheets
