@@ -10,7 +10,7 @@ from bs4 import BeautifulSoup
 st.set_page_config(page_title="조선대학교 추천채용 통합 관리 시스템", layout="wide")
 
 # --- 구글 앱스 스크립트 웹훅 연동 설정 (인증 에러 100% 원천 차단) ---
-WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw1LsiV82_NdIPN85McoXs-L4hxrPxQ3xiV94zOEtN2KK8gChYSXPiMVhHplR9PLDAIOQ/exec"
+WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw1LsiV82_NdIPN85McoXs-L4hxrPxQ3xiV94zOeTN2KK8gCHySXPiMVhHplR9PLDAIOQ/exec"
 
 def load_data_from_gs(sheet_name, default_columns):
     try:
