@@ -11,14 +11,14 @@ from google.oauth2.service_account import Credentials
 
 st.set_page_config(page_title="조선대학교 추천채용 통합 관리 시스템", layout="wide")
 
-# --- 구글 시트 연결 설정 (Secrets 기반의 가장 안전한 방식) ---
+# --- 구글 시트 연결 설정 (시간 동기화 오차 없는 파일 직접 연동 방식) ---
 def get_google_sheet():
-    creds_dict = dict(st.secrets["gcp_service_account"])
     scope = [
         "https://spreadsheets.google.com/feeds",
         "https://www.googleapis.com/auth/drive"
     ]
-    creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
+    # 깃허브에 업로드된 service_account.json 파일을 직접 타겟팅하여 서명 에러를 우회합니다
+    creds = Credentials.from_service_account_file("service_account.json", scopes=scope)
     client = gspread.authorize(creds)
     return client.open("추천채용통합DB")
 
