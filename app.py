@@ -7,18 +7,17 @@ import urllib.parse
 import requests
 from bs4 import BeautifulSoup
 import gspread
-from google.oauth2.service_account import Credentials
+from oauth2client.service_account import ServiceAccountCredentials
 
 st.set_page_config(page_title="조선대학교 추천채용 통합 관리 시스템", layout="wide")
 
-# --- 구글 시트 연결 설정 (최신 표준 google-auth 방식) ---
+# --- 구글 시트 연결 설정 (JSON 파일 직접 연동 방식) ---
 def get_google_sheet():
-    creds_dict = dict(st.secrets["gcp_service_account"])
     scope = [
         "https://spreadsheets.google.com/feeds",
         "https://www.googleapis.com/auth/drive"
     ]
-    creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
+    creds = ServiceAccountCredentials.from_json_keyfile_name("service_account.json", scope)
     client = gspread.authorize(creds)
     return client.open("추천채용통합DB")
 
