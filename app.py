@@ -10,7 +10,7 @@ from bs4 import BeautifulSoup
 st.set_page_config(page_title="조선대학교 추천채용 통합 관리 시스템", layout="wide")
 
 # --- 구글 앱스 스크립트 웹훅 연동 설정 (인증 에러 100% 원천 차단) ---
-WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw1LsiV82_NdIPN85McoXs-L4hxrPxQ3xiV94zOeTN2KK8gCHySXPiMVhHplR9PLDAIOQ/exec"
+WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw1LsiV82_NdIPN85McoXs-L4hxrPxQ3xiV94zOEtN2KK8gChYSXPiMVhHplR9PLDAIOQ/exec"
 
 def load_data_from_gs(sheet_name, default_columns):
     try:
@@ -30,9 +30,7 @@ def load_data_from_gs(sheet_name, default_columns):
 
 def save_data_to_gs(sheet_name, df):
     try:
-        # 데이터프레임 내의 결측치(NaN, None)를 빈 문자열로 치환하여 JSON 전송 에러를 방지합니다
         df = df.fillna("")
-        
         data_to_send = [df.columns.values.tolist()] + df.values.tolist()
         payload = {
             "sheet": sheet_name
@@ -125,6 +123,9 @@ def create_template(target_type):
         elif target_type == "지원 학생 목록":
             df_tpl = pd.DataFrame(columns=["연번", "지원일자", "지원기업", "지원직무", "성명", "학과", "학번", "학적", "졸업(예정)일", "연락처", "이메일", "공고시기", "진행상태"])
             df_tpl.to_excel(writer, sheet_name='지원학생_양식', index=False)
+        elif target_type == "합격자 DB":
+            df_tpl = pd.DataFrame(columns=["연번", "합격일자", "학번", "이름", "학과", "연락처", "기업명", "직무", "입사일", "재직상태", "멘토가능여부", "비고"])
+            df_tpl.to_excel(writer, sheet_name='합격자_양식', index=False)
     return output.getvalue()
 
 # --- 사이드바 메뉴 ---
@@ -255,6 +256,37 @@ elif menu == "3. 합격자 DB & 멘토 풀":
     if st.button("저장하기"):
         save_data_to_gs("passed", st.session_state.passed)
 
+    st.markdown("---")
+    st.subheader("➕ 신규 합격자 및 멘토 등록")
+    with st.form("add_passed_form"):
+        col_p1, col_p2, col_p3 = st.columns(3)
+        with col_p1:
+            p_date = st.date_input("합격일자", datetime.date.today())
+            p_id = st.text_input("학번")
+            p_name = st.text_input("이름")
+            p_dept = st.text_input("학과")
+        with col_p2:
+            p_phone = st.text_input("연락처")
+            p_comp = st.text_input("기업명")
+            p_job = st.text_input("직무")
+            p_entry_date = st.text_input("입사일 (예: 2026-03)")
+        with col_p3:
+            p_status = st.selectbox("재직상태", ["재직중", "퇴사", "기타"])
+            p_mentor = st.selectbox("멘토가능여부", ["가능", "불가"])
+            p_remark = st.text_input("비고")
+
+        if st.form_submit_button("합격자 등록"):
+            next_no = len(st.session_state.passed) + 1
+            new_p = {
+                "연번": next_no, "합격일자": str(p_date), "학번": p_id, "이름": p_name, "학과": p_dept,
+                "연락처": p_phone, "기업명": p_comp, "직무": p_job, "입사일": p_entry_date,
+                "재직상태": p_status, "멘토가능여부": p_mentor, "비고": p_remark
+            }
+            st.session_state.passed = pd.concat([st.session_state.passed, pd.DataFrame([new_p])], ignore_index=True)
+            save_data_to_gs("passed", st.session_state.passed)
+            st.success(f"{p_name} 합격자 등록 완료!")
+            st.rerun()
+
 # --- 4. 추천채용 실적 및 주간/월간 보고 ---
 elif menu == "4. 추천채용 실적 및 주간/월간 보고":
     st.header("📊 추천채용 실적 보고 (주간 / 월간)")
@@ -320,7 +352,7 @@ elif menu == "5. 기존 엑셀 일괄 업로드":
     col_up1, col_up2 = st.columns([1, 1])
     with col_up1:
         st.subheader("1️⃣ 표준 업로드 양식 다운로드")
-        target_tpl = st.selectbox("다운로드할 양식을 선택하세요", ["등록 기업 목록", "지원 학생 목록"])
+        target_tpl = st.selectbox("다운로드할 양식을 선택하세요", ["등록 기업 목록", "지원 학생 목록", "합격자 DB"])
         st.download_button(
             label=f"📥 {target_tpl} 표준 양식(.xlsx) 다운로드", 
             data=create_template(target_tpl), 
@@ -329,7 +361,7 @@ elif menu == "5. 기존 엑셀 일괄 업로드":
         )
     with col_up2:
         st.subheader("2️⃣ 작성한 엑셀 파일 업로드")
-        target_upload = st.selectbox("업로드할 항목을 선택하세요", ["등록 기업 목록", "지원 학생 목록"])
+        target_upload = st.selectbox("업로드할 항목을 선택하세요", ["등록 기업 목록", "지원 학생 목록", "합격자 DB"])
         uploaded_file = st.file_uploader("작성 완료된 엑셀 파일(.xlsx)을 드래그하세요.", type=["xlsx", "xls"])
         if uploaded_file is not None:
             df_upload = pd.read_excel(uploaded_file)
@@ -348,6 +380,11 @@ elif menu == "5. 기존 엑셀 일괄 업로드":
                     df_upload["연번"] = range(start_no, start_no + len(df_upload))
                     st.session_state.applicants = pd.concat([st.session_state.applicants, df_upload], ignore_index=True)
                     save_data_to_gs("applicants", st.session_state.applicants)
+                elif target_upload == "합격자 DB":
+                    start_no = len(st.session_state.passed) + 1
+                    df_upload["연번"] = range(start_no, start_no + len(df_upload))
+                    st.session_state.passed = pd.concat([st.session_state.passed, df_upload], ignore_index=True)
+                    save_data_to_gs("passed", st.session_state.passed)
                 st.success("구글 시트에 데이터 통합 및 영구 저장 완료!")
                 st.rerun()
 
