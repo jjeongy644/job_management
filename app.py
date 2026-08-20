@@ -91,40 +91,24 @@ def fetch_naver_company_info(comp_name):
         pass
     return info
 
-# 세션 초기화
+# 세션 초기화 (연번 포함 헤더 구조)
 default_companies = pd.DataFrame(columns=[
-    "등록일", "기업명", "모집기간", "담당자성명", "직급", "내선번호", "연락처", "e-mail", "채용공고일자", "직무", "비고"
+    "연번", "등록일", "기업명", "모집기간", "담당자성명", "직급", "내선번호", "연락처", "e-mail", "채용공고일자", "직무", "비고"
 ])
 if "companies" not in st.session_state:
     st.session_state.companies = load_persistent_data("companies.csv", default_companies)
 
 default_applicants = pd.DataFrame(columns=[
-    "지원일자", "지원기업", "지원직무", "성명", "학과", "학번", "학적", "졸업(예정)일", "연락처", "이메일", "공고시기", "진행상태"
+    "연번", "지원일자", "지원기업", "지원직무", "성명", "학과", "학번", "학적", "졸업(예정)일", "연락처", "이메일", "공고시기", "진행상태"
 ])
 if "applicants" not in st.session_state:
     st.session_state.applicants = load_persistent_data("applicants.csv", default_applicants)
-
-if "passed" not in st.session_state:
-    st.session_state.passed = pd.DataFrame([
-        {"연번": 1, "합격일자": "2026-06-25", "학번": "20201234", "이름": "김철수", "학과": "전기공학과", "연락처": "010-1111-2222", "기업명": "수완에너지(주)", "직무": "운영 파트", "입사일": "2026-07-01", "재직상태": "재직중", "멘토가능여부": True, "비고": "수습 진행 중"}
-    ])
 
 if "reports" not in st.session_state:
     st.session_state.reports = {}
 
 if "crawled_info" not in st.session_state:
     st.session_state.crawled_info = {"대표자": "", "설립일": "", "매출액": "", "업종": "", "기업유형": ""}
-
-def create_template(target_type):
-    output = io.BytesIO()
-    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        if target_type == "등록 기업 목록":
-            df_tpl = pd.DataFrame([{"등록일": "2026-08-01", "기업명": "예시기업(주)", "모집기간": "상시", "담당자성명": "홍길동", "직급": "과장", "내선번호": "02-123-4567", "연락처": "010-0000-0000", "e-mail": "hr@example.com", "채용공고일자": "2026-08", "직무": "경영지원", "비고": "우수기업"}])
-            df_tpl.to_excel(writer, sheet_name='등록기업_양식', index=False)
-        elif target_type == "지원 학생 목록":
-            df_tpl = pd.DataFrame([{"지원일자": "2026-08-01", "지원기업": "예시기업(주)", "지원직무": "경영지원", "성명": "홍길동", "학과": "경영학과", "학번": "20230001", "학적": "재학", "졸업(예정)일": "2027-02", "연락처": "010-0000-0000", "이메일": "example@chosun.ac.kr", "공고시기": "2026-08", "진행상태": "접수"}])
-            df_tpl.to_excel(writer, sheet_name='지원학생_양식', index=False)
-    return output.getvalue()
 
 menu = st.sidebar.selectbox("📂 메뉴 선택", ["1. 등록 기업 관리", "2. 지원 학생 관리", "3. 합격자 DB & 멘토 풀", "4. 추천채용 실적 및 주간/월간 보고", "📂 5. 기존 엑셀 일괄 업로드", "📝 6. 기업 분석 보고서 생성"])
 
@@ -133,7 +117,12 @@ if menu == "1. 등록 기업 관리":
     st.header("🏢 추천채용 등록 기업 & HR 담당자 리스트")
     st.info("💡 표 안의 항목을 수정하거나 행을 추가한 뒤, 아래 **[DB에 영구 저장하기]** 버튼을 꼭 눌러주세요!")
     
-    edited_companies = st.data_editor(st.session_state.companies, use_container_width=True, num_rows="dynamic")
+    edited_companies = st.data_editor(
+        st.session_state.companies, 
+        use_container_width=True, 
+        num_rows="dynamic",
+        column_config={"연번": st.column_config.NumberColumn("연번", disabled=True)}
+    )
     st.session_state.companies = edited_companies
 
     if st.button("💾 등록 기업 DB에 영구 저장하기", type="primary"):
@@ -173,8 +162,9 @@ if menu == "1. 등록 기업 관리":
                 hr_email = st.text_input("e-mail")
 
             if st.form_submit_button("기업 및 담당자 등록"):
+                next_no = len(st.session_state.companies) + 1
                 new_c = {
-                    "등록일": str(c_reg_date), "기업명": c_name, "모집기간": c_period, "담당자성명": hr_name,
+                    "연번": next_no, "등록일": str(c_reg_date), "기업명": c_name, "모집기간": c_period, "담당자성명": hr_name,
                     "직급": hr_rank, "내선번호": hr_tel, "연락처": hr_hp, "e-mail": hr_email,
                     "채용공고일자": c_notice_date, "직무": c_job, "비고": c_remark
                 }
@@ -188,7 +178,12 @@ elif menu == "2. 지원 학생 관리":
     st.header("👨‍🎓 지원 학생 상세 리스트")
     st.info("💡 지원자 정보를 관리하고 아래 **[DB에 영구 저장하기]** 버튼을 눌러주세요.")
     
-    edited_applicants = st.data_editor(st.session_state.applicants, use_container_width=True, num_rows="dynamic")
+    edited_applicants = st.data_editor(
+        st.session_state.applicants, 
+        use_container_width=True, 
+        num_rows="dynamic",
+        column_config={"연번": st.column_config.NumberColumn("연번", disabled=True)}
+    )
     st.session_state.applicants = edited_applicants
 
     if st.button("💾 지원 학생 DB에 영구 저장하기", type="primary"):
@@ -216,8 +211,9 @@ elif menu == "2. 지원 학생 관리":
             a_status = st.selectbox("진행상태", ["접수", "추천완료", "서류합격", "최종합격", "불합격"])
 
         if st.form_submit_button("지원자 등록"):
+            next_no = len(st.session_state.applicants) + 1
             new_a = {
-                "지원일자": str(a_date), "지원기업": a_comp, "지원직무": a_job, "성명": a_name,
+                "연번": next_no, "지원일자": str(a_date), "지원기업": a_comp, "지원직무": a_job, "성명": a_name,
                 "학과": a_dept, "학번": a_id, "학적": a_academic, "졸업(예정)일": a_grad_date,
                 "연락처": a_phone, "이메일": a_email, "공고시기": a_period, "진행상태": a_status
             }
@@ -229,8 +225,15 @@ elif menu == "2. 지원 학생 관리":
 # --- 3. 합격자 DB & 멘토 풀 ---
 elif menu == "3. 합격자 DB & 멘토 풀":
     st.header("🏆 합격자 데이터베이스 & 실무 멘토 풀")
+    default_passed = pd.DataFrame([{"연번": 1, "합격일자": "2026-06-25", "학번": "20201234", "이름": "김철수", "학과": "전기공학과", "연락처": "010-1111-2222", "기업명": "수완에너지(주)", "직무": "운영 파트", "입사일": "2026-07-01", "재직상태": "재직중", "멘토가능여부": True, "비고": "수습 진행 중"}])
+    if "passed" not in st.session_state:
+        st.session_state.passed = load_persistent_data("passed.csv", default_passed)
+        
     edited_passed = st.data_editor(st.session_state.passed, use_container_width=True, num_rows="dynamic")
     st.session_state.passed = edited_passed
+    if st.button("💾 합격자 DB 영구 저장"):
+        save_persistent_data("passed.csv", st.session_state.passed)
+        st.success("저장 완료!")
 
 # --- 4. 추천채용 실적 및 주간/월간 보고 ---
 elif menu == "4. 추천채용 실적 및 주간/월간 보고":
@@ -247,7 +250,6 @@ elif menu == "4. 추천채용 실적 및 주간/월간 보고":
         df_c = st.session_state.companies.copy()
         df_a = st.session_state.applicants.copy()
         
-        # 날짜 필터링 안전 장치
         if "등록일" in df_c.columns and len(df_c) > 0:
             df_c["등록일_dt"] = pd.to_datetime(df_c["등록일"], errors="coerce")
             mask_c = (df_c["등록일_dt"].dt.date >= start_date) & (df_c["등록일_dt"].dt.date <= end_date)
@@ -262,7 +264,6 @@ elif menu == "4. 추천채용 실적 및 주간/월간 보고":
             weekly_view = []
             for idx, row in weekly_companies.reset_index().iterrows():
                 comp_name = row.get("기업명", "")
-                # 해당 기업에 지원한 학생 수 계산
                 applicant_count = len(df_a[df_a["지원기업"] == comp_name]) if len(df_a) > 0 else 0
                 weekly_view.append({
                     "구 분": idx + 1,
@@ -371,8 +372,6 @@ elif menu == "📝 6. 기업 분석 보고서 생성":
         st.markdown("---")
         st.subheader("3️⃣ 학생 상담용 추천 포인트 및 동문 진출 현황")
         r_tips = st.text_area("학생 지도 가이드라인", value="• 환경공학과 및 관련학과 졸업예정자 집중 추천\n• AllBaro 시스템 활용 경험 및 대기/수질기사 보유 여부 강조 필수")
-        
-        # 요청하신 조선대학교 동문 진출 현황 입력 칸
         r_alumni = st.text_area("조선대학교 동문 재직/입사 현황 (몇 명 진출 등 기재)", value="• 현재 동문 약 3명 재직 중 (환경공학과 졸업생 중심 현장 배치)")
 
         st.markdown("---")
