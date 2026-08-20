@@ -307,6 +307,26 @@ elif menu == "4. 추천채용 실적 및 주간/월간 보고":
             else:
                 st.info("시각화할 데이터가 부족합니다.")
 
+    # --- 엑셀 다운로드 버튼 추가 ---
+    st.markdown("---")
+    st.subheader("📥 전체 데이터 엑셀 내보내기")
+    @st.cache_data
+    def convert_df_to_excel():
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            st.session_state.companies.to_excel(writer, sheet_name='등록기업_HR담당자', index=False)
+            st.session_state.applicants.to_excel(writer, sheet_name='지원학생', index=False)
+            if "passed" in st.session_state:
+                st.session_state.passed.to_excel(writer, sheet_name='합격자및멘토', index=False)
+        return output.getvalue()
+    
+    st.download_button(
+        label="📄 전체 DB 엑셀 파일(.xlsx) 다운로드",
+        data=convert_df_to_excel(),
+        file_name=f"추천채용_통합DB_{datetime.date.today()}.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+
 # --- 5. 기존 엑셀 일괄 업로드 ---
 elif menu == "📂 5. 기존 엑셀 일괄 업로드":
     st.header("📂 기존 엑셀 데이터 불러오기")
