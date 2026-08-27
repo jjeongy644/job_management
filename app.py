@@ -110,7 +110,8 @@ def fetch_naver_company_info(comp_name):
             info["업종"] = "기타 식품 첨가물 제조업"
             info["기업유형"] = "대기업(계열사)"
     except Exception as e:
-        pass
+        # 에러가 나면 모든 항목을 빈칸("")으로 채워서 리턴
+        return {"대표자": "", "설립일": "", "매출액": "", "업종": "", "기업유형": ""}
     return info
 
 def create_template(target_type):
