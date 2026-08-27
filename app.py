@@ -103,14 +103,7 @@ def fetch_naver_company_info(comp_name):
         res = requests.get(url, headers=headers, timeout=5)
         soup = BeautifulSoup(res.text, "html.parser")
         info["기업유형"] = auto_detect_company_type(comp_name)
-        if "하림산업" in comp_name:
-            info["대표자"] = "김기만"
-            info["설립일"] = "2012년 2월 8일"
-            info["매출액"] = "약 1,093억 원"
-            info["업종"] = "기타 식품 첨가물 제조업"
-            info["기업유형"] = "대기업(계열사)"
     except Exception as e:
-        # 에러가 나면 모든 항목을 빈칸("")으로 채워서 리턴
         return {"대표자": "", "설립일": "", "매출액": "", "업종": "", "기업유형": ""}
     return info
 
@@ -393,7 +386,7 @@ elif menu == "6. 기업 분석 보고서 생성":
     st.header("📝 기업 분석 및 추천채용 보고서 생성")
     col_s1, col_s2 = st.columns([3, 1])
     with col_s1:
-        target_search_comp = st.text_input("분석할 기업명 입력", value="하림산업")
+        target_search_comp = st.text_input("분석할 기업명 입력", value="")
     with col_s2:
         st.markdown("&nbsp;")
         if st.button("🔍 기업정보 자동 조회"):
@@ -402,7 +395,8 @@ elif menu == "6. 기업 분석 보고서 생성":
             st.success("기업 정보를 성공적으로 불러왔습니다!")
 
     c_data = st.session_state.crawled_info
-with st.form("company_analysis_form"):
+    
+    with st.form("company_analysis_form"):
         col_r1, col_r2, col_r3 = st.columns(3)
         with col_r1:
             r_comp = st.text_input("기업명", value=target_search_comp)
