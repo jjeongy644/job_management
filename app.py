@@ -21,8 +21,7 @@ def load_data_from_gs(sheet_name, default_columns):
             if data and len(data) > 1:
                 df = pd.DataFrame(data[1:], columns=data[0])
                 for col in df.columns:
-                    if "일" in col or "날짜" in col or "기간" in col or "일자" in col:
-                        df[col] = df[col].astype(str).str.split(" ").str[0].replace("nan", "").replace("NaT", "")
+                    df[col] = df[col].astype(str).str.split("T").str[0].replace("nan", "").replace("NaT", "")
                 return df
         return pd.DataFrame(columns=default_columns)
     except Exception as e:
