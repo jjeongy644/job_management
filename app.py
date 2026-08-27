@@ -405,29 +405,31 @@ elif menu == "6. 기업 분석 보고서 생성":
     with st.form("company_analysis_form"):
         col_r1, col_r2, col_r3 = st.columns(3)
         with col_r1:
-            r_comp = st.text_input("기업명", value=target_search_comp)
-            r_ceo = st.text_input("대표자", value=c_data.get("대표자", "김기만"))
-            r_emp = st.text_input("직원 수", value="약 700명")
-            r_est = st.text_input("설립 연도", value=c_data.get("설립일", "2012년 2월 8일"))
-        with col_r2:
-            r_type = st.text_input("기업 유형", value=c_data.get("기업유형", "대기업 (하림그룹 계열사)"))
-            r_sales = st.text_input("매출액", value=c_data.get("매출액", "약 1,093억 원"))
-            r_profit = st.text_input("영업이익", value="약 -1,096억 원")
-            r_loc = st.text_input("사업장 위치", value="전북 익산시 함열읍 다송리 897")
-        with col_r3:
-            r_industry = st.text_input("업종", value=c_data.get("업종", "기타 식품 첨가물 제조업"))
-            r_url = st.text_input("홈페이지", value="https://harim-foods.com/")
-            r_period = st.text_input("공고/채용 시기", value="수시 채용")
-            r_dept = st.text_input("분석 직무/부서", value="환경자원팀")
+r_comp = st.text_input("기업명", value=target_search_comp)
+r_ceo = st.text_input("대표자", value=c_data.get("대표자", ""))
+r_emp = st.text_input("직원 수", value=c_data.get("직원수", ""))
+r_est = st.text_input("설립 연도", value=c_data.get("설립일", ""))
 
-        r_talents = st.text_area("기업 인재상", value="• 프로 인재상: 고도의 전문 능력과 열정\n• 프로 리더상: 경영이념 구현")
-        r_tasks = st.text_area("주요 업무 내용", value="1. 배출원 관리\n2. 환경시설물 관리")
-        r_req = st.text_area("자격 요건 & 우대 조건", value="• 자격요건: 학사 이상, 관련 자격증 소지자")
-        r_issues = st.text_area("최근 기업 이슈 및 ESG 경영 동향", value="• 자원순환형 ESG 환경 관리")
-        r_tips = st.text_area("학생 지도 가이드라인", value="• 관련학과 졸업예정자 집중 추천")
-        r_alumni = st.text_area("조선대학교 동문 재직 현황", value="• 현재 동문 약 3명 재직 중")
-        r_history_summary = st.text_area("조선대학교 최근 취업자 현황", value="• 2024년: 2명\n• 2025년: 1명")
-        r_history_notes = st.text_area("취업자 특징", value="• 주요 배치 직무: 환경자원팀")
+with col_r2:
+    r_type = st.text_input("기업 유형", value=c_data.get("기업유형", ""))
+    r_sales = st.text_input("매출액", value=c_data.get("매출액", ""))
+    r_profit = st.text_input("영업이익", value=c_data.get("영업이익", ""))
+    r_loc = st.text_input("사업장 위치", value=c_data.get("사업장위치", ""))
+
+with col_r3:
+    r_industry = st.text_input("업종", value=c_data.get("업종", ""))
+    r_url = st.text_input("홈페이지", value=c_data.get("홈페이지", ""))
+    r_period = st.text_input("공고/채용 시기", value=c_data.get("공고시기", ""))
+    r_dept = st.text_input("분석 직무/부서", value=c_data.get("분석직무", ""))
+
+r_talents = st.text_area("기업 인재상", value=c_data.get("인재상", ""))
+r_tasks = st.text_area("주요 업무 내용", value=c_data.get("주요업무", ""))
+r_req = st.text_area("자격 요건 & 우대 조건", value=c_data.get("자격요건", ""))
+r_issues = st.text_area("최근 기업 이슈 및 ESG 경영 동향", value=c_data.get("ESG", ""))
+r_tips = st.text_area("학생 지도 가이드라인", value=c_data.get("가이드라인", ""))
+r_alumni = st.text_area("조선대학교 동문 재직 현황", value=c_data.get("동문현황", ""))
+r_history_summary = st.text_area("조선대학교 최근 취업자 현황", value=c_data.get("취업자현황", ""))
+r_history_notes = st.text_area("취업자 특징", value=c_data.get("취업자특징", ""))
 
         if st.form_submit_button("📄 기업 분석 보고서 완성하기"):
             st.session_state.reports[r_comp] = {
